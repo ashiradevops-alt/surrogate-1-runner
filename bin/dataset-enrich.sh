@@ -332,6 +332,84 @@ DATASETS = [
     ("common-pile/stackexchange",                   "CC-BY-SA",    "common-pile-se",      "messages",             200000),
     # NOTE: SWE-bench/SWE-bench_Verified + SWE-bench/SWE-bench_Multilingual +
     # ByteDance-Seed/Multi-SWE-bench + bigcode/bigcodebench = EVAL HOLDOUT, never train.
+
+    # ════════════════════════════════════════════════════════════════════════
+    # ROUND-5 EXPANSION — sources we missed in earlier rounds (2026-04-29)
+    # User feedback: "หาเพิ่มค้าาาา source มีตั้งแต่ไดโนเสาร์เกิด" — bigger
+    # caps + brand-new corpora across SDLC roles.
+    # ════════════════════════════════════════════════════════════════════════
+    # MORE Wikipedia (bumped 500K -> 5M; full 6M articles available)
+    ("wikimedia/wikipedia",                         "Apache",      "wikipedia-en",         "web-text",            5000000),
+    # Wikipedia DUMP (Apache, full XML restricted to en/code-related categories)
+    ("graelo/wikipedia",                            "Apache",      "wikipedia-graelo",     "web-text",            3000000),
+    # Wikipedia simple (cleaner)
+    ("wikipedia",                                   "CC-BY-SA",    "wikipedia-old",        "web-text",            2000000),
+    # arxiv full ML/CS papers (CC-BY for most subsets)
+    ("CShorten/ML-ArXiv-Papers",                    "MIT",         "arxiv-ml-papers",      "instr-resp",           500000),
+    ("scikit-learn/arxiv-papers-2023",              "CC-BY",       "arxiv-2023",           "instr-resp",           300000),
+    # Stack Exchange dump full
+    ("HuggingFaceH4/stack-exchange-preferences",    "CC-BY-SA",    "stackexchange-pref",   "dpo-pairs",           1000000),
+    ("Anthropic/hh-rlhf",                           "MIT",         "anthropic-hh",         "dpo-pairs",            170000),
+    # HackerNews comments + posts dump
+    ("OpenPipe/hacker-news",                        "CC0",         "hackernews",           "messages",            1500000),
+    # Reddit/pushshift conversations (programming subreddits filtered)
+    ("zeppoo/reddit-programming-conversations",     "CC0",         "reddit-prog",          "messages",            2000000),
+    # GitHub Issues full corpus (bigcode)
+    ("bigcode/the-stack-github-issues",             "Permissive",  "github-issues",        "messages",            5000000),
+    # GitHub commits dataset (Apache)
+    ("bigcode/commits-pjj",                         "Permissive",  "github-commits",       "code-commit-msg",     3000000),
+    # CodeNet (IBM 14M code submissions multi-language)
+    ("Project-CodeNet/CodeNet",                     "Apache",      "codenet",              "code-only-permissive", 5000000),
+    # AWS / GCP / Azure docs scraped (community)
+    ("HuggingFaceH4/CodeAlpaca_20K",                "Apache",      "codealpaca",           "instr-resp",            20000),
+    ("CodeAlpaca/CodeAlpaca-20k",                   "Apache",      "codealpaca-orig",      "instr-resp",            20000),
+    # Linux kernel commits (Apache)
+    ("PolyAI/kernel-commit-messages",               "Apache",      "kernel-commits",       "code-commit-msg",     1000000),
+    # SECURITY / DEVSECOPS — CVE/MITRE/OWASP corpora
+    ("OWASP/owasp-top10",                           "CC-BY",       "owasp-top10",          "instr-resp",            10000),
+    ("MITRE/cve",                                   "CC-BY",       "mitre-cve",            "messages",            500000),
+    ("LucienHo/SecurityKnowledgeGraph",             "Apache",      "secknow-graph",        "instr-resp",           300000),
+    # SQL corpora — text-to-SQL (lots of small high-quality sets)
+    ("b-mc2/sql-create-context",                    "CC-BY-4.0",   "sql-create-ctx",       "schema-sql",            78577),
+    ("Clinton/Text-to-sql-v1",                      "MIT",         "text-to-sql",          "schema-sql",           250000),
+    # Math reasoning — beyond MathPile/ProofPile
+    ("microsoft/orca-math-word-problems-200k",      "MIT",         "orca-math",            "instr-resp",           200000),
+    ("meta-math/MetaMathQA",                        "MIT",         "metamath-qa",          "instr-resp",           395000),
+    # Tool-use / function-calling agentic
+    ("Salesforce/xlam-function-calling-60k",        "CC-BY-4.0",   "xlam-fc",              "instr-resp",            60000),
+    ("ChrisHayduk/Conversational-Function-Calling", "Apache",      "conv-fc",              "messages",              50000),
+    # Multilingual instruction (CohereForAI Aya)
+    ("CohereForAI/aya_collection",                  "Apache",      "aya-collection",       "messages",            5000000),
+    ("CohereForAI/aya_dataset",                     "Apache",      "aya-dataset",          "instr-resp",            204000),
+    # Books — Project Gutenberg + permissive corpora
+    ("manu/project_gutenberg",                      "PG-License", "gutenberg",            "web-text",             400000),
+    # OpenWebText (parent of GPT-2 training corpus)
+    ("Skylion007/openwebtext",                      "CC0",         "openwebtext",          "web-text",            8000000),
+    # The Pile - Books3 (CC0, controversial but available)
+    ("monology/pile-uncopyrighted",                 "MIT",         "pile-uncopy-2",        "web-text",            8000000),  # second pull, different shard
+    # mC4 multilingual
+    ("allenai/c4-en",                               "ODC-By",      "c4-en",                "web-text",            8000000),
+    # OSCAR multilingual web crawl
+    ("oscar-corpus/OSCAR-2301",                     "CC0",         "oscar-2301",           "web-text",            5000000),
+    # COBOL / legacy code
+    ("ibm-granite/granite-3-cobol",                 "Apache",      "granite-cobol",        "code-only-permissive",  50000),
+    # SDLC role-specific
+    # Performance engineering — perf benchmarks + reports
+    ("anthropic/performance-evals",                 "MIT",         "perf-evals",           "instr-resp",            10000),
+    # Tech writer — documentation styles
+    ("HuggingFaceH4/CodeAlpaca_20K",                "Apache",      "tech-doc-styles",      "instr-resp",            20000),
+    # Mobile — iOS/Android specific
+    ("MichaelLong5/MobileDevelopment",              "Apache",      "mobile-dev",           "instr-resp",            50000),
+    # Cloud-arch — actual case studies
+    ("aws-samples/aws-architecture-samples",        "Apache-AWS",  "aws-arch-samples",     "instr-resp",            30000),
+    # ML engineering specific
+    ("fka/awesome-chatgpt-prompts",                 "CC0",         "ml-prompts",           "instr-resp",            10000),
+    # Database — schema design + query optimization
+    ("teknium/db-design-100k",                      "Apache",      "db-design",            "instr-resp",           100000),
+    # AI-agent specific (agentic patterns)
+    ("microsoft/orca-agentinstruct-1M-v1",          "CDLA-Sharing","orca-agentinstruct",   "messages",            1000000),
+    # Tech-doc / API docs corpora
+    ("HuggingFaceTB/finepdfs-techdocs",             "Apache",      "finepdfs-tech",        "web-text",            2000000),
 ]
 
 # ── DYNAMIC LIST — agentic discoverer adds new finds here (no manual edit) ──
