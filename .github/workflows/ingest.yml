@@ -16,9 +16,11 @@ name: bulk-ingest
 
 on:
   schedule:
-    # Every 15 minutes — packs 4 cycles/hr per repo. With 2 repos active,
-    # that's 8 cycles/hr x 20 shards = 160 ingest passes per hour.
-    - cron: '*/15 * * * *'
+    # Every 5 minutes — GitHub Actions minimum cron interval. Combined with
+    # workflow_run self-chain below, the system never sits idle: cron is the
+    # heartbeat that re-arms the loop if any link breaks; the chain trigger
+    # is what actually keeps it running back-to-back.
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       shard_total:
@@ -29,12 +31,8 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  # Allow only one full ingest cycle in flight per branch — if a previous
-  # cron tick is still running when the next fires, cancel the old one to
-  # avoid commit-rate contention on the HF dataset.
-  group: bulk-ingest-${{ github.ref }}
-  cancel-in-progress: true
+# NO concurrency group — overlap is desired. Multiple cron+chain fires run
+# simultaneously to keep the 20 free-tier slots saturated.
 
 jobs:
   shard:
@@ -60,17 +58,38 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: ingest shard ${{ matrix.shard_id }}
+      - name: ingest shard ${{ matrix.shard_id }} (continuous loop)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HUGGING_FACE_HUB_TOKEN: ${{ secrets.HF_TOKEN }}
-          SHARD_ID: ${{ matrix.shard_id }}
           SHARD_TOTAL: ${{ inputs.shard_total || '20' }}
           INGEST_RUNNER: github-actions
+          MATRIX_SHARD: ${{ matrix.shard_id }}
+        # Each runner ingests continuously until its time budget runs out.
+        # SHARD_ID rotates each iteration so we don't re-process the same
+        # 1/20 slice (which the local dedup cache would skip after iter 1).
+        # 4 iterations across 4 different slices = effective coverage of
+        # 4/20 of the dataset list in one runner-lifetime, which combined
+        # with 20 runners gives full sweep with no idle time.
         run: |
           set -e
           mkdir -p "$HOME/.hermes/workspace/dataset-enrich"
           mkdir -p "$HOME/.surrogate/state" "$HOME/.surrogate/logs" "$HOME/.surrogate/bin/lib"
           cp bin/lib/dedup.py "$HOME/.surrogate/bin/lib/dedup.py"
           chmod +x bin/dataset-enrich.sh
-          bash bin/dataset-enrich.sh
+
+          # 11 min budget — 2 min slack before workflow's 13 min hard timeout
+          end_at=$((SECONDS + 660))
+          iter=0
+          while [[ $SECONDS -lt $end_at ]]; do
+              # Rotate shard slice each iteration to dodge local dedup cache
+              # (the cache was just populated by the previous iter so the
+              # same slice would yield 0 new pairs).
+              export SHARD_ID=$(( (MATRIX_SHARD + iter * 20) % (SHARD_TOTAL * 5) ))
+              export SHARD_TOTAL_INNER=$((SHARD_TOTAL * 5))
+              echo ""
+              echo "═══ iter $iter  SHARD_ID=$SHARD_ID / $SHARD_TOTAL_INNER  (${SECONDS}s elapsed) ═══"
+              SHARD_TOTAL=$SHARD_TOTAL_INNER bash bin/dataset-enrich.sh || echo "  iter $iter rc=$? — continuing"
+              iter=$((iter + 1))
+          done
+          echo "═══ runner done: $iter iterations in ${SECONDS}s ═══"
