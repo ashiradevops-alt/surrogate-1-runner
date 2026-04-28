@@ -772,8 +772,20 @@ print(f"Output: {out_path} ({out_path.stat().st_size/1024/1024:.1f} MB)", flush=
 # so every iteration of every shard is preserved (16 shards x 30 iter/hr was
 # previously collapsing to ONE surviving file per day due to filename collision).
 if new_pairs_total > 0:
+    # Distribute across 5 sibling datasets so we get 5 x 128 = 640 commits/hr
+    # of aggregate cap instead of one repo's 128. Each shard always lands in
+    # the same dataset (shard_id mod 5), so trained models can sweep all 5
+    # at once and collisions are impossible.
+    _datasets = [
+        "axentx/surrogate-1-training-pairs",   # legacy primary — keep as bucket 0
+        "axentx/surrogate-1-pairs-A",
+        "axentx/surrogate-1-pairs-B",
+        "axentx/surrogate-1-pairs-C",
+        "axentx/surrogate-1-pairs-D",
+    ]
+    target_repo = _datasets[SHARD_ID % len(_datasets)]
     repo_path = f"batches/public-merged/{time.strftime('%Y-%m-%d')}/shard{SHARD_ID}-{_iter_ts}.jsonl"
-    print(f"\nUploading {repo_path} to axentx/surrogate-1-training-pairs...", flush=True)
+    print(f"\nUploading {repo_path} to {target_repo}...", flush=True)
     # Retry the upload up to 5 times with exponential backoff.
     # HF API surfaces transient 5xx, network hiccups, and rate-limit errors
     # under heavy concurrent commit load (40+ shards uploading simultaneously).
@@ -784,7 +796,7 @@ if new_pairs_total > 0:
             api.upload_file(
                 path_or_fileobj=str(out_path),
                 path_in_repo=repo_path,
-                repo_id="axentx/surrogate-1-training-pairs",
+                repo_id=target_repo,
                 repo_type="dataset",
                 commit_message=f"shard{SHARD_ID}@{_iter_ts}: +{new_pairs_total} pairs (coding/dialog/commits/reasoning/iac)"
             )
