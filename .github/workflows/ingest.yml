@@ -37,7 +37,10 @@ permissions:
 jobs:
   shard:
     runs-on: ubuntu-latest
-    timeout-minutes: 13   # cron is */15 — 13 min job + 2 min slack < next tick
+    timeout-minutes: 350  # GitHub Actions max-per-job is 360 min on public-repo
+                          # free tier; we use 350 so the runner can stream
+                          # ingest passes for ~6 hours per workflow run before
+                          # fresh cron-or-dispatch fire takes over.
     strategy:
       fail-fast: false
       max-parallel: 20    # GitHub Free plan concurrency cap
@@ -78,8 +81,10 @@ jobs:
           cp bin/lib/dedup.py "$HOME/.surrogate/bin/lib/dedup.py"
           chmod +x bin/dataset-enrich.sh
 
-          # 11 min budget — 2 min slack before workflow's 13 min hard timeout
-          end_at=$((SECONDS + 660))
+          # ~5h45m budget — slack before the workflow's 350-min hard timeout.
+          # That's ~80-100 ingest iterations per runner before next cron/dispatch
+          # spins up a fresh batch.
+          end_at=$((SECONDS + 20700))
           iter=0
           while [[ $SECONDS -lt $end_at ]]; do
               # Rotate shard slice each iteration to dodge local dedup cache
