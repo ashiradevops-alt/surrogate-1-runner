@@ -1,0 +1,75 @@
+name: bulk-ingest
+
+# 16-shard parallel ingest of public HuggingFace datasets, pushed to
+# axentx/surrogate-1-training-pairs as date-partitioned chunks.
+#
+# Each shard:
+#   1. Checks out this repo (small — just scripts)
+#   2. Installs datasets / huggingface_hub / pyarrow
+#   3. Runs bin/dataset-enrich.sh with SHARD_ID set so it processes
+#      its 1/16 slice (slug-hash bucketing)
+#   4. Uploads its output file to a unique repo path
+#      (batches/public-merged/<date>/shard<N>-<HHMMSS>.jsonl)
+#
+# Public repo => unlimited free Actions minutes. 16 runners x 7GB RAM each
+# means no shared-memory OOM risk that the HF Space cpu-basic instance hits.
+
+on:
+  schedule:
+    # Every 30 minutes — give each cycle 25 min to run + 5 min buffer.
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      shard_total:
+        description: 'Number of shards (default 16)'
+        required: false
+        default: '16'
+
+permissions:
+  contents: read
+
+concurrency:
+  # Allow only one full ingest cycle in flight per branch — if a previous
+  # cron tick is still running when the next fires, cancel the old one to
+  # avoid commit-rate contention on the HF dataset.
+  group: bulk-ingest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 16
+      matrix:
+        shard_id: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: ingest shard ${{ matrix.shard_id }}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HUGGING_FACE_HUB_TOKEN: ${{ secrets.HF_TOKEN }}
+          SHARD_ID: ${{ matrix.shard_id }}
+          SHARD_TOTAL: ${{ inputs.shard_total || '16' }}
+          INGEST_RUNNER: github-actions
+        run: |
+          set -e
+          mkdir -p "$HOME/.hermes/workspace/dataset-enrich"
+          mkdir -p "$HOME/.surrogate/state" "$HOME/.surrogate/logs" "$HOME/.surrogate/bin/lib"
+          cp bin/lib/dedup.py "$HOME/.surrogate/bin/lib/dedup.py"
+          chmod +x bin/dataset-enrich.sh
+          bash bin/dataset-enrich.sh
