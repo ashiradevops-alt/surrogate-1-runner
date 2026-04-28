@@ -82,6 +82,18 @@ jobs:
           cp bin/lib/dedup.py "$HOME/.surrogate/bin/lib/dedup.py"
           chmod +x bin/dataset-enrich.sh
 
+          # Sync the discoverer's running catalog (1500+ auto-found datasets)
+          # from the HF Space. The static list in dataset-enrich.sh has only
+          # ~146; the discoverer's curated additions multiply our coverage by
+          # roughly 10x. Best-effort fetch — if the Space is briefly down or
+          # the file isn't built yet, we fall through to the static list.
+          DD="$HOME/.surrogate/state/dynamic-datasets.json"
+          if curl -fsSL --max-time 30 "https://axentx-surrogate-1.hf.space/dynamic-datasets" -o "$DD" 2>/dev/null; then
+              echo "  dynamic-datasets synced: $(wc -c < "$DD" | tr -d ' ') bytes"
+          else
+              echo "  dynamic-datasets fetch failed — running with static list only"
+          fi
+
           # 22-min budget — 3 min slack before the 25 min hard timeout.
           # Each ingest pass is ~30-60s (most time is parquet stream/dedup),
           # so 22 min gives ~10-15 SHARD_ID rotations per runner.
